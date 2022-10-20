@@ -1,25 +1,16 @@
 const inquirer = require("inquirer");
-const mysql2 = require("mysql2");
-const cTable = require("console.table");
-require("dotenv").config();
 const {
-  getAllEmployee,
-  addEmployee,
-  getAllRole,
-  getAllDepartment,
-  addRole,
+  viewDepartment,
+  getDepartmentList,
   addDepartment,
+} = require("./sql/department");
+const { viewRole, getRoleList, addRole } = require("./sql/role");
+const {
+  viewEmployee,
+  getEmployeeList,
+  addEmployee,
   updateEmployee,
-} = require("./query");
-
-//Define connection information
-//.env file is needed
-const connection = mysql2.createConnection({
-  host: "localhost",
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: "employee_db",
-});
+} = require("./sql/employee");
 
 //Main menu prompt
 const menuPrompt = () => {
@@ -30,7 +21,6 @@ const menuPrompt = () => {
         name: "menuSelection",
         message: "What would you like to do?",
         choices: [
-          new inquirer.Separator(),
           "View All Employees",
           "Add Employee",
           "Update Employee Role",
@@ -42,49 +32,28 @@ const menuPrompt = () => {
         ],
       },
     ])
-    .then((answer) => {
+    .then(async (answer) => {
       switch (answer.menuSelection) {
         case "View All Employees":
-          viewEmployee();
+          await viewEmployee();
+          menuPrompt();
           break;
         case "Add Employee":
-          //Passing role.title and employee full name as list into addEmployeePrompt()
-          connection.query(`SELECT title FROM role`, (err, results) => {
-            const titleList = results.map((result) => result.title);
-            connection.query(
-              `SELECT concat(first_name," ",last_name) AS name FROM employee`,
-              (err, results) => {
-                const employeeList = results.map((result) => result.name);
-                addEmployeePrompt(titleList, employeeList);
-              }
-            );
-          });
+          addEmployeePrompt(await getRoleList(), await getEmployeeList());
           break;
         case "Update Employee Role":
-          //Passing role.title and employee full name as list into updateEmployeePrompt()
-          connection.query(`SELECT title FROM role`, (err, results) => {
-            const titleList = results.map((result) => result.title);
-            connection.query(
-              `SELECT concat(first_name," ",last_name) AS name FROM employee`,
-              (err, results) => {
-                const employeeList = results.map((result) => result.name);
-                updateEmployeePrompt(titleList, employeeList);
-              }
-            );
-          });
+          updateEmployeePrompt(await getRoleList(), await getEmployeeList());
           break;
         case "View All Roles":
-          viewRole();
+          await viewRole();
+          menuPrompt();
           break;
         case "Add Role":
-          //Passing department.name as list into addRolePrompt()
-          connection.query(`SELECT name FROM department`, (err, results) => {
-            const departmentList = results.map((result) => result.name);
-            addRolePrompt(departmentList);
-          });
+          addRolePrompt(await getDepartmentList());
           break;
         case "View All Departments":
-          viewDepartment();
+          await viewDepartment();
+          menuPrompt();
           break;
         case "Add Department":
           addDepartmentPrompt();
@@ -94,45 +63,6 @@ const menuPrompt = () => {
           process.exit();
       }
     });
-};
-
-//Print all employee using query into console table
-const viewEmployee = () => {
-  connection.query(getAllEmployee, (error, result) => {
-    if (error) {
-      console.log(error);
-      menuPrompt();
-    } else {
-      console.table(result);
-      menuPrompt();
-    }
-  });
-};
-
-//Print all role using query into console table
-const viewRole = () => {
-  connection.query(getAllRole, (error, result) => {
-    if (error) {
-      console.log(error);
-      menuPrompt();
-    } else {
-      console.table(result);
-      menuPrompt();
-    }
-  });
-};
-
-//Print all department using query into console table
-const viewDepartment = () => {
-  connection.query(getAllDepartment, (error, result) => {
-    if (error) {
-      console.log(error);
-      menuPrompt();
-    } else {
-      console.table(result);
-      menuPrompt();
-    }
-  });
 };
 
 //Prompts to add employee then insert data into database using query
@@ -162,22 +92,14 @@ const addEmployeePrompt = (titleList, employeeList) => {
         choices: employeeList,
       },
     ])
-    .then((result) => {
-      connection.query(
-        addEmployee,
-        [result.firstName, result.lastName, result.role, result.manager],
-        (error) => {
-          if (error) {
-            console.log(`\nSQL ERROR: ${error.message}\n`);
-            menuPrompt();
-          } else {
-            console.log(
-              `\n${result.firstName} ${result.lastName} added to database.\n`
-            );
-            menuPrompt();
-          }
-        }
+    .then(async (result) => {
+      await addEmployee(
+        result.firstName,
+        result.lastName,
+        result.role,
+        result.manager
       );
+      menuPrompt();
     });
 };
 
@@ -202,20 +124,9 @@ const addRolePrompt = (departmentList) => {
         choices: departmentList,
       },
     ])
-    .then((result) => {
-      connection.query(
-        addRole,
-        [result.name, parseInt(result.salary), result.department],
-        (error) => {
-          if (error) {
-            console.log(`\nSQL ERROR: ${error.message}\n`);
-            menuPrompt();
-          } else {
-            console.log(`\nNew Role ${result.name} added to database.\n`);
-            menuPrompt();
-          }
-        }
-      );
+    .then(async (result) => {
+      await addRole(result.name, result.salary, result.department);
+      menuPrompt();
     });
 };
 
@@ -229,16 +140,9 @@ const addDepartmentPrompt = () => {
         message: "Please enter the department name: ",
       },
     ])
-    .then((result) => {
-      connection.query(addDepartment, [result.name], (error) => {
-        if (error) {
-          console.log(`\nSQL ERROR: ${error.message}\n`);
-          menuPrompt();
-        } else {
-          console.log(`\n${result.name} Department added to database.\n`);
-          menuPrompt();
-        }
-      });
+    .then(async (result) => {
+      await addDepartment(result.name);
+      menuPrompt();
     });
 };
 
@@ -259,16 +163,9 @@ const updateEmployeePrompt = (titleList, employeeList) => {
         choices: titleList,
       },
     ])
-    .then((result) => {
-      connection.query(updateEmployee, [result.role, result.name], (error) => {
-        if (error) {
-          console.log(`\nSQL ERROR: ${error.message}\n`);
-          menuPrompt();
-        } else {
-          console.log(`\nUpdated ${result.name}'s role to ${result.role}.\n`);
-          menuPrompt();
-        }
-      });
+    .then(async (result) => {
+      await updateEmployee(result.role, result.name);
+      menuPrompt();
     });
 };
 
