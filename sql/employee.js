@@ -32,6 +32,7 @@ const viewEmployee = async () => {
   }
 };
 
+//Get employee full name as array
 const getEmployeeList = async () => {
   try {
     const employees = await connection
@@ -43,6 +44,7 @@ const getEmployeeList = async () => {
   }
 };
 
+//Add employee with given firstname, lastname ,role title and manager fullname
 const addEmployee = async (firstName, lastName, role, managerName) => {
   try {
     await connection
@@ -54,6 +56,7 @@ const addEmployee = async (firstName, lastName, role, managerName) => {
   }
 };
 
+//update employee role with role title and employee full name
 const updateEmployee = async (role, name) => {
   try {
     await connection.promise().query(updateEmployeeQuery, [role, name]);

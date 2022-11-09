@@ -36,6 +36,7 @@ const getDepartmentList = async () => {
   }
 };
 
+//Add department with departmentname
 const addDepartment = async (departmentName) => {
   try {
     await connection.promise().query(addDepartmentQuery, [departmentName]);
